@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartRoute - Live Traffic Route Viewer</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        #map {
+            height: 500px;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="text-center mb-4">SmartRoute</h1>
+        <p class="text-center">View live traffic camera feeds along your route.</p>
+        
+        <div class="row mb-4">
+            <div class="col-md-5">
+                <input type="text" id="start" class="form-control" placeholder="Start Location (e.g., San Francisco)" value="San Francisco">
+            </div>
+            <div class="col-md-5">
+                <input type="text" id="end" class="form-control" placeholder="End Location (e.g., New York)" value="New York">
+            </div>
+            <div class="col-md-2">
+                <button id="search" class="btn btn-primary w-100">Search Route</button>
+            </div>
+        </div>
+        
+        <div id="map"></div>
+    </div>
+    
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Initialize the map
+        const map = L.map('map').setView([37.7749, -122.4194], 5);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+        
+        // Function to fetch route and traffic cameras
+        document.getElementById("search").addEventListener("click", function() {
+            const start = document.getElementById("start").value;
+            const end = document.getElementById("end").value;
+            
+            fetch(`/route?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`)
+                .then(response => response.json())
+                .then(data => {
+                    // Clear existing markers
+                    map.eachLayer(layer => {
+                        if (layer instanceof L.Marker) {
+                            map.removeLayer(layer);
+                        }
+                    });
+                    
+                    // Draw route
+                    const coordinates = data.route.coordinates.map(coord => [coord.lat, coord.lon]);
+                    const route = L.polyline(coordinates, { color: 'blue' }).addTo(map);
+                    map.fitBounds(route.getBounds());
+                    
+                    // Add traffic cameras
+                    data.cameras.forEach(camera => {
+                        const marker = L.marker([camera.lat, camera.lon]).addTo(map);
+                        marker.bindPopup(`<img src="${camera.url}" width="200" alt="Traffic Camera">`);
+                    });
+                })
+                .catch(error => {
+                    console.error("Error:", error);
+                });
+        });
+    </script>
+</body>
+</html>
